@@ -1,0 +1,86 @@
+#!/bin/bash
+# List Backups
+
+# load global config
+source /etc/mysql-backup/mysql-backup-global.conf
+
+date=`date +%Y-%m-%d_%H-%M`;
+year=`date +%Y`;
+month=`date +%m`;
+day=`date +%d`;
+
+BIN_date='/bin/date'
+BIN_bc='/usr/bin/bc'
+BIN_find='/usr/bin/find'
+BIN_stat='/usr/bin/stat'
+BIN_rm='/bin/rm'
+BIN_mkdir='/bin/mkdir'
+BIN_cp='/bin/cp'
+
+if [[ $1 ]];
+then
+        servers=$1;
+else
+	echo "$date - no server selected. Exiting."
+	exit 1
+fi
+
+for server in $servers;
+do
+	# Get Config for the host
+	server_conf=$configpath/$server".conf";
+	if [ -a $server_conf ];
+	then
+  	source $server_conf;
+  		echo "[$date] Found config file '$server_conf' for host '$server'";
+	else
+  		echo "[$date] Config file for host '$server' not found. Exiting."
+  		exit 1
+	fi
+
+	echo "Archive of host '$server'"
+	echo "##################"
+
+	# First, check if there's already an archive for this month
+	to_archive=0
+	m_archive=$storagepath/$year/$month/archive/$hostname
+	if [ -d $m_archive ];
+	then
+		if [ "$(ls -A $m_archive)" ];
+		then
+			echo "$m_archive"
+		else
+			echo "N/A"
+		fi
+	else
+		echo "N/A"
+	fi
+
+	echo ""
+
+	# First determine all existing backups of the host
+	b_existing=`$BIN_find $storagepath -type d -name $hostname -and -not -path *archive*`
+
+	echo "Backups of host '$server'"
+	echo "###################"
+
+	d_ct=0
+	for b_dir in $b_existing
+	do
+		# Raise dir count
+		d_ct=$[$d_ct+1]
+
+		# Determine size
+		b_size=`du -hs $b_dir | awk '{ print $1 }'`
+
+		# Extract date of backup from directory
+		b_date=`echo "$b_dir" | awk -F'/' '{ print $5"/"$6"/"$7 }'`
+		echo "$d_ct - $b_date ($b_size)"
+
+	done
+
+	if [ $d_ct -eq 0 ];
+	then
+		echo "N/A"
+	fi
+done

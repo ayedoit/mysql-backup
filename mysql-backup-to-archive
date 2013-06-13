@@ -1,0 +1,77 @@
+#!/bin/bash
+
+runcheck=`ps ax | grep mysql-backup-to-archive | grep -v grep | grep -v vi | grep -v nedit | wc -l`;
+date=`date +%Y-%m-%d_%H-%M`;
+
+if [ $runcheck -gt 3 ];
+then
+        echo "[$date] 'mysql-backup-to-archive' already running more than 3 times. Exiting.";
+        exit 1;
+fi
+
+# load global config
+source /etc/mysql-backup/mysql-backup-global.conf
+
+year=`date +%Y`;
+month=`date +%m`;
+day=`date +%d`;
+
+BIN_date='/bin/date'
+BIN_bc='/usr/bin/bc'
+BIN_find='/usr/bin/find'
+BIN_stat='/usr/bin/stat'
+BIN_rm='/bin/rm'
+BIN_mkdir='/bin/mkdir'
+BIN_cp='/bin/cp'
+
+echo "[$date] mysql-backup-to-archive: Copying latest backup of given host to archive directory.";
+
+if [[ $1 ]];
+then
+        servers=$1;
+else
+	echo "[$date] No host for archiving given. Exiting."
+	exit 1;
+fi
+
+if [ -z $archive_path ];
+then
+	echo "[$date] 'archive_path' not set in config file. Using defaults."
+	archive_path="$default_archive_path"
+fi
+
+
+for server in $servers;
+do
+	# Get Config for the host
+	server_conf=$configpath/$server".conf";
+	if [ -a $server_conf ];
+	then
+		source $server_conf;
+	  	echo "[$date] Found config file '$server_conf' for host '$server'";
+	else
+	  	echo "[$date] Config file for host '$server' not found. Exiting."
+	  	exit 1
+	fi
+
+	# First determine all existing backups of the host
+	echo "[$date] Getting all existing backups of host '$server'."
+	b_existing=`$BIN_find $storagepath -name $hostname -type d -and -not -path "*archive*" | tail -n 1`
+
+	if [ -n "$b_existing" ];
+	then
+		for b_dir in $b_existing
+		do
+			# Extract date of backup from directory
+			# b_date=`echo "$b_dir" | awk -F'/' '{ print $5"/"$6"/"$7 }'`
+			echo "[$date] Latest backup of host '$server': '$b_dir'"
+
+			# Copy to /mnt/backuppc/mysql_backup
+			echo "[$date] Copying files to archive directory '$archive_path'"
+			
+			$BIN_cp -aur $b_dir $archive_path
+		done
+	else
+		echo "[$date] No backup found for host '$server'. Exiting."
+	fi
+done

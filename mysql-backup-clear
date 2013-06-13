@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# load global config
+source /etc/mysql-backup/mysql-backup-global.conf
+
+date=`date +%Y-%m-%d_%H-%M`;
+year=`date +%Y`;
+month=`date +%m`;
+day=`date +%d`;
+
+if [[ $1 ]];
+then
+        servers=$1;
+else
+	echo "[$date] No hosts for Clean-Up given. Exiting."
+	exit 1;
+fi
+
+for server in $servers;
+do
+	echo "[$date] Starting Clean-Up after backup on host '$server'.";
+
+	# Rotate older Backups
+	/usr/local/bin/mysql-backup-rotate $server
+done

@@ -1,0 +1,165 @@
+#!/bin/bash
+
+# Check if script already running
+runcheck=`ps ax | grep mysql-backup-daily | grep -v grep | grep -v vi | grep -v nedit | grep -v nano | wc -l`;
+date=`date +%Y-%m-%d_%H-%M`;
+
+if [ $runcheck -gt 3 ];
+then
+        echo "[$date] 'mysql-backup-daily' already running more than 3 times. Exiting.";
+        exit 1;
+fi
+
+# load global config
+source /etc/mysql-backup/mysql-backup-global.conf
+
+year=`date +%Y`;
+month=`date +%m`;
+day=`date +%d`;
+slavecheck=0;
+slavedelay=0;
+
+BIN_mydumper="/usr/local/bin/mydumper"
+
+echo "[$date] Welcome to your MySQL Backup. Let's start.";
+
+# If server is given by option, set it. Otherwise take serverlist from global config
+if [[ $1 ]];
+then
+	servers=$1;
+fi
+
+if [ -n $servers ];
+then
+  for server in $servers;
+  do
+
+  # Get Config for the host
+  server_conf=$configpath/$server".conf";
+  if [ -a $server_conf ];
+  then
+  	source $server_conf;
+  	echo "[$date] Found config file '$server_conf' for host '$server'";
+  else
+  	echo "[$date] Config file for host '$server' not found. Exiting."
+  	exit 1
+  fi
+
+  echo "[$date] Starting backups on host '$server'";
+
+  # check if server is a slave, otherwise skip this step
+  if [ -n $slave ];
+  then
+    if [ "$slave" == "true" ];
+    then
+      # Re-check if host really is a slave
+      slavecheck=`mysql -h $hostname --user=$user --password=$password -s -e "SHOW SLAVE STATUS \G" | wc -l`;
+
+      if [ $slavecheck -gt 0 ];
+      then
+          # check if there is a delay
+          slavedelay=`mysql -h $hostname --user=$user --password=$password -s -e "SHOW SLAVE STATUS \G" | grep "Seconds_Behind_Master:" | cut -d":" -f2 | sed 's/\s//g'`;
+
+          if [ $slavedelay == "NULL" ];
+          then
+            echo "[$date] Slave is not active!";
+            exit 1;
+          fi
+
+          sleep_count=0
+          while [ $slavedelay -gt 0 ]
+          do
+            # Wait 60s for slave delay to become 0
+            # Otherwise exit
+            if [ $sleep_count -ge 60 ];
+            then
+              echo "[$date] Waited 60 seconds for slave delay to become 0. Giving up."
+              exit 1;
+            else
+              slavedelay=`mysql -h $hostname --user=$user --password=$password -s -e "SHOW SLAVE STATUS \G" | grep "Seconds_Behind_Master:" | cut -d":" -f2 | sed 's/\s//g'`;
+
+              sleep 1
+              echo "[$date] Slave delay is '$slavedelay' seconds. Waiting 1 more second. Been already waiting for '$sleep_count' seconds."
+              sleep_count=$[$sleep_count +1]
+            fi
+          done
+      fi
+    fi
+  fi
+
+  backup_dir="$storagepath/$year/$month/$day/$hostname";
+  # check if destination directory exists, create if not
+  if [ ! -d $backupdir ];
+  then
+          echo "[$date] Creating backup directory '$backupdir'";
+          mkdir -p $backupdir;
+  fi
+
+  # Get all databases to dump their schemas
+  databases=`mysql -h $hostname --user=$user --password=$password -s -e "SHOW DATABASES" | tr "\n" " ";`;
+
+  for database in $databases;
+  do
+
+   exclude_db=0
+   for excluded_database in $exclude_databases
+   do
+  	if [ $database == $excluded_database ];
+  	then
+  		exclude_db=1
+  	fi
+   done
+
+   # check if database is contained in excludes, start dump if not
+   if [ $exclude_db -eq 0 ];
+   then
+
+      schema_dir="$storagepath/$year/$month/$day/$hostname/schemas";
+
+      # check if destination directory exists, create if not
+      if [ ! -d $schema_dir ];
+      then
+  	    echo "[$date] Creating schema directory '$schema_dir'.";
+  	    mkdir -p $schema_dir;
+      fi
+
+      # check if create of $schema_dir has failed, exit if yes
+      if [ $? -eq 0 ];
+      then
+        # store CREATE DATABASE with DROP DATABASE
+        mysqldump $params --user=$user --password=$password --host=$hostname $database --add-drop-database --no-create-info --no-data -B > $schema_dir/$database.sql;
+
+        # Check if command was successful
+        if [ $? -gt 0 ];
+        then
+  	      echo "[$date] Error dumping database structure.";
+  	      exit 1;
+        fi
+      else
+        echo "[$date] Sorry. Could not create schema directory '$schema_dir'. Exiting.";
+        exit 1;
+      fi
+    else
+        echo "[$date] Skipping database '$database': Excluded by host config.";
+        continue;
+    fi
+  done
+
+  # Starting backups with mydumper
+  date=`date +%Y-%m-%d_%H-%M`;
+  echo "[$date] Starting data backups with mydumper - see $backup_dir/$server.log for information"
+  $BIN_mydumper -o $backup_dir -r $chunk_size -c -e -L $backup_dir/$server.log -u $user -p $password -h $hostname -t $threads -v 3
+
+  date=`date +%Y-%m-%d_%H-%M`;
+  echo "[$date] Backup for host '$server' finished.";
+
+  done
+else
+  echo "[$date] No hosts for backup given. Exiting.";
+  exit 1;
+fi
+
+echo "[$date] All backups finished";
+echo "";
+
+exit 0;

@@ -1,0 +1,150 @@
+#!/bin/bash
+# Rotate Backups
+
+runcheck=`ps ax | grep mysql-backup-rotate | grep -v grep | grep -v vi | grep -v nedit | wc -l`;
+date=`date +%Y-%m-%d_%H-%M`;
+
+if [ $runcheck -gt 3 ];
+then
+        echo "[$date] 'mysql-backup-rotate' already running more than 3 times. Exiting.";
+        exit 1;
+fi
+
+# load global config
+source /etc/mysql-backup/mysql-backup-global.conf
+
+year=`date +%Y`;
+month=`date +%m`;
+day=`date +%d`;
+
+BIN_date='/bin/date'
+BIN_bc='/usr/bin/bc'
+BIN_find='/usr/bin/find'
+BIN_stat='/usr/bin/stat'
+BIN_rm='/bin/rm'
+BIN_mkdir='/bin/mkdir'
+BIN_cp='/bin/cp'
+
+echo "[$date] mysql-backup-rotate: Rotation of existing MySQL Backups of a given host.";
+
+if [[ $1 ]];
+then
+        servers=$1;
+else
+	echo "[$date] No host for rotation given. Exiting."
+	exit 1;
+fi
+
+for server in $servers;
+do
+	# Get Config for the host
+	server_conf=$configpath/$server".conf";
+	if [ -a $server_conf ];
+	then
+  	source $server_conf;
+  		echo "[$date] Found config file '$server_conf' for host '$server'";
+	else
+  		echo "[$date] Config file for host '$server' not found. Exiting."
+  		exit 1
+	fi
+
+	echo "[$date] Starting rotation of backups for host '$server'";
+
+	# First, check if there's already an archive for this month
+	to_archive=0
+	m_archive=$storagepath/$year/$month/archive/$hostname
+	if [ -d $m_archive ];
+	then
+		if [ "$(ls -A $m_archive)" ];
+		then
+			echo "[$date] Monthly archive for this host already exists."
+		else
+			echo "[$date] Monthly archive for this host already exists but is empty."
+			to_archive=1
+		fi
+	else
+		echo "[$date] Monthly archive for this host does not yet exist. Creating directory '$m_archive'." 
+		$BIN_mkdir -p $m_archive
+		to_archive=1
+		if [ $? -gt 0 ];
+		then
+			echo "[$date] Could not create archive directory '$m_archive'. Exiting."
+			exit 1
+		fi
+	fi
+
+	# Check rotation_period
+	if [ -z $rotation_period ];
+	then
+		echo "[$date] 'rotation_period' not set in config file. Using defaults."
+		rotation_period=$rotation_perdiod_default
+	fi
+
+	echo "[$date] Rotation period is '$rotation_period' days."
+
+	# First determine all existing backups of the host
+	b_existing=`$BIN_find $storagepath -type d -name $hostname -and -not -path *archive*`
+
+	for b_dir in $b_existing
+	do
+		echo "[$date] Found backup directory '$b_dir'."
+
+		# Do we need to archive this?
+		if [ $to_archive -eq 1 ];
+		then
+			cur_mon=`echo $b_dir | awk -F"/" '{ print $6 }'`
+			if [ $cur_mon -eq $month ];
+			then
+				echo "[$date] Copying directory-content to monthly archive."
+				$BIN_cp -r $b_dir/* $m_archive
+				to_archive=0
+			fi
+		fi
+
+		#  Find old files in each directory
+		FILES=`$BIN_find $b_dir -daystart -mtime +$rotation_period -type f`
+
+		if [ -n "$FILES" ];
+		then
+			for file in $FILES
+			do
+				date=`date +%Y-%m-%d_%H-%M`;
+				filename=$(basename "$file")
+				echo "[$date] File '$filename' is older than '$rotation_period' days. Deleting."
+
+				$BIN_rm $file
+
+				if [ $? -gt 0 ];
+				then
+					echo "[$date] Could not delete '$filename'. Skipping."
+				fi
+			done
+		fi
+	done
+
+done
+
+# Find empty directories under $storagepath
+date=`date +%Y-%m-%d_%H-%M`;
+echo ""
+echo "[$date] Cleaning empty direcories beneath '$storagepath'."
+
+# Exclude the monthly archive from this
+DIRS=`$BIN_find $storagepath -depth -type d -empty -and -not -path *archive*`
+
+if [ -z "$DIRS" ];
+then
+        echo "[$date] No empty directories found. I'm done here!"
+else
+    for dir in $DIRS;
+    do
+        echo "[$date] Found empty directory '$dir'. Deleting."
+
+        $BIN_rm -r $dir
+
+		if [ $? -gt 0 ];
+		then
+			echo "[$date] Could not delete directory '$dir'. Skipping."
+		fi
+    done
+fi

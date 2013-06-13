@@ -1,0 +1,29 @@
+#!/bin/bash
+# List Backups
+
+# load global config
+source /etc/mysql-backup/mysql-backup-global.conf
+
+date=`date +%Y-%m-%d_%H-%M`;
+year=`date +%Y`;
+month=`date +%m`;
+day=`date +%d`;
+
+BIN_date='/bin/date'
+BIN_bc='/usr/bin/bc'
+BIN_find='/usr/bin/find'
+BIN_stat='/usr/bin/stat'
+BIN_rm='/bin/rm'
+BIN_mkdir='/bin/mkdir'
+BIN_cp='/bin/cp'
+
+# Get all server which have backups currently
+servers=`$BIN_find $storagepath -maxdepth 4 -mindepth 4 -type d -and -not -path "*archive*" | awk -F"/" '{ print $8 }' | awk -F"." '{ print $1 }' | sort | uniq`
+
+for server in $servers;
+do
+	echo "[$date] Archiving backup of host '$server'."
+	# Copy latest backup to default archive path defined in global conf
+	/usr/local/bin/mysql-backup-to-archive $server
+	echo ""
+done
