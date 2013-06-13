@@ -89,6 +89,7 @@ Import backup
 ```bash
 mysql -u USER -p -h HOSTNAME < `cat $backup_dir/schemas/*`
 myloader -d $backup_dir -q 10000 -o -h HOSTNAME -u USERE -p PASSWORD -v 3 -C -t 4
+```
 
 How it works
 ============
