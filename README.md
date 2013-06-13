@@ -146,7 +146,7 @@ mysql-backup-to-archive
 -----------------------
 This script moves the latest backup of a host to a given archive-directory (or to the default directory, if nothing else is given). This script is fired by ***mysql-backup-clear-archive***
 * Load global config for storage-path and defaults
-* Check if a servername has been given as attribute in the script call; if yes, mvoe latest backup of host to specified directory; if not, exit
+* Check if a servername has been given as attribute in the script call; if yes, move latest backup of host to specified directory; if not, exit
 * Load the config file of the host to backup; exit if it doesn't exist
 * Find all existing backups of the given host and list them along with their sizes; copy the latest backup to the archive-directory.
 
@@ -154,6 +154,6 @@ mysql-backup-clear-archive
 --------------------------
 This script fires **mysql-backup-to-archive**; 
 * Load global config for storage-path and defaults
-* LoGet all hosts with existing backups
+* Get all hosts with existing backups
 * Fire **mysql-backup-to-archive** for each host
 
