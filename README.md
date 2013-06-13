@@ -122,23 +122,23 @@ mysql-backup-clear
 ------------------
 This is the script fired after a backup
 * Load global config for storage-path and defaults
-* Check if a servername has been given as attribute in the script call; if yes, just backup this server; if not, backup all servers listed in global config
+* Check if a servername has been given as attribute in the script call; if yes, clear backups for this server; if not, exit
 * Load the config file of the host to backup; exit if it doesn't exist
 * Launch **mysql-backup-rotate** for rotation, monthly archives and clearing of empty directories
 
 mysql-backup-rotate
 -------------------
 * Load global config for storage-path and defaults
-* Check if a servername has been given as attribute in the script call; if yes, just backup this server; if not, backup all servers listed in global config
-* Load the config file of the host to backup; exit if it doesn't exist
-* Check if there's already a monthly archive (we keep one of the backups of each host every month as a monthly snapshot); if yes, check if the folder is empty; If so, or if no archive exists, a new one has to be created (next step). Set a flag to indicate that we need to archive one of our backups
-* Here's the cleanup: Gather all existing backups for the host and check if one or more of them is older then the host's or the global '''rotation_period''' (usually 7 days). If yes, delete it. Also, copy one of the backups to the archive directory, if no archive exists yet.
+* Check if a servername has been given as attribute in the script call; if yes, rotate backups of this server; if not, exit
+* Load the config file of the host to rotate; exit if it doesn't exist
+* Check if there's already a monthly archive (the backup script keeps one of the backups of each host every month as a monthly snapshot); if yes, check if the folder is empty; If so, or if no archive exists, a new one has to be created (next step). Set a flag to indicate that we need to archive one of our backups
+* Here's the cleanup: Gather all existing backups for the host and check if one or more of them is older then the host's or the global **rotation_period** (usually 7 days). If yes, delete it. Also, copy one of the backups to the archive directory, if no archive exists yet.
 * Find empty directories below **$storagepath** and delete them. This will of course first delete the deepest subdirectories so it may take two or more runs of the script to have a full backup directory removed when it's empty. Since the directory clearing isn't limited to a specific host, this happens with every call of this script.
 
 mysql-backup-list
 -----------------
 * Load global config for storage-path and defaults
-* Check if a servername has been given as attribute in the script call; if yes, just backup this server; if not, backup all servers listed in global config
+* Check if a servername has been given as attribute in the script call; if yes, return a list of backups for this server; if not, exit
 * Load the config file of the host to backup; exit if it doesn't exist
 * Find all existing backups of the given host and list them along with their sizes
 
@@ -146,7 +146,7 @@ mysql-backup-to-archive
 -----------------------
 This script moves the latest backup of a host to a given archive-directory (or to the default directory, if nothing else is given). This script is fired by ***mysql-backup-clear-archive***
 * Load global config for storage-path and defaults
-* Check if a servername has been given as attribute in the script call; if yes, just backup this server; if not, backup all servers listed in global config
+* Check if a servername has been given as attribute in the script call; if yes, mvoe latest backup of host to specified directory; if not, exit
 * Load the config file of the host to backup; exit if it doesn't exist
 * Find all existing backups of the given host and list them along with their sizes; copy the latest backup to the archive-directory.
 
@@ -154,7 +154,6 @@ mysql-backup-clear-archive
 --------------------------
 This script fires **mysql-backup-to-archive**; 
 * Load global config for storage-path and defaults
-* Check if a servername has been given as attribute in the script call; if yes, just backup this server; if not, backup all servers listed in global config
-* Load the config file of the host to backup; exit if it doesn't exist
-* Fire **mysql-backup-to-archive** for the host
+* LoGet all hosts with existing backups
+* Fire **mysql-backup-to-archive** for each host
 
