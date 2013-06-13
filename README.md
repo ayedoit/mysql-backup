@@ -75,7 +75,7 @@ mysql-backup-daily HOSTNAME
 Clean-Up after backup
 ---------------------
 ```bash
-mysql-backup-clear
+mysql-backup-clear HOSTNAME
 ```
 
 Move latest backup of all hosts to an archive directory
