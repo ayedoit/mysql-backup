@@ -59,7 +59,7 @@ do
 	echo ""
 
 	# First determine all existing backups of the host
-	b_existing=`$BIN_find $storagepath -type d -name $hostname -and -not -path *archive*`
+	b_existing=`$BIN_find $storagepath -type d -name $hostname -and -not -path "*archive*"`
 
 	echo "Backups of host '$server'"
 	echo "###################"

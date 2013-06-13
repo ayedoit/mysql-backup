@@ -83,7 +83,7 @@ do
 	echo "[$date] Rotation period is '$rotation_period' days."
 
 	# First determine all existing backups of the host
-	b_existing=`$BIN_find $storagepath -type d -name $hostname -and -not -path *archive*`
+	b_existing=`$BIN_find $storagepath -type d -name $hostname -and -not -path "*archive*"`
 
 	for b_dir in $b_existing
 	do
@@ -130,7 +130,7 @@ echo ""
 echo "[$date] Cleaning empty direcories beneath '$storagepath'."
 
 # Exclude the monthly archive from this
-DIRS=`$BIN_find $storagepath -depth -type d -empty -and -not -path *archive*`
+DIRS=`$BIN_find $storagepath -depth -type d -empty -and -not -path "*archive*"`
 
 if [ -z "$DIRS" ];
 then
