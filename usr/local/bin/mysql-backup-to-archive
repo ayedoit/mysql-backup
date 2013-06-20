@@ -67,8 +67,9 @@ do
 			echo "[$date] Latest backup of host '$server': '$b_dir'"
 
 			# Copy to /mnt/backuppc/mysql_backup
-			echo "[$date] Copying files to archive directory '$archive_path'"
+			echo "[$date] Copying files to archive directory '$archive_path/$hostname'"
 			
+			mkdir -p $archive_path/$hostname
 			$BIN_cp -aur $b_dir $archive_path
 		done
 	else
