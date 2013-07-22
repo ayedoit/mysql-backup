@@ -38,31 +38,25 @@ do
   		exit 1
 	fi
 
-	echo "Archive of host '$server'"
-	echo "##################"
-
-	# First, check if there's already an archive for this month
-	to_archive=0
-	m_archive=$storagepath/$year/$month/archive/$hostname
-	if [ -d $m_archive ];
-	then
-		if [ "$(ls -A $m_archive)" ];
-		then
-			echo "$m_archive"
-		else
-			echo "N/A"
-		fi
-	else
-		echo "N/A"
-	fi
-
-	echo ""
-
 	# First determine all existing backups of the host
 	b_existing=`$BIN_find $storagepath -type d -name $hostname -and -not -path "*archive*"`
 
 	echo "Backups of host '$server'"
-	echo "###################"
+	echo ""
+
+	divider===============================
+	divider=$divider$divider
+
+	header="\n %2s %18s %4s %4s %6s\n"
+	format=" %2d %18s %4s %4s %6s\n"
+
+	width=43
+
+	printf "$header" "ID" "DATE" "DURATION" "SIZE" "FILES"
+
+	printf "%$width.${width}s\n" "$divider"
+
+	# Start Output
 
 	d_ct=0
 	for b_dir in $b_existing
@@ -71,11 +65,23 @@ do
 		d_ct=$[$d_ct+1]
 
 		# Determine size
-		b_size=`du -hs $b_dir | awk '{ print $1 }'`
+		b_size=`grep "SIZE" $b_dir/.backup_meta | awk '{ print $2}'`
+
+		# Determine duration
+		time_start=`grep "START" $b_dir/.backup_meta | awk '{ print $2" "$3}'`
+		ts_start=`date --utc --date "$time_start" +%s`
+
+		time_end=`grep "END" $b_dir/.backup_meta | awk '{ print $2" " $3}'`
+		ts_end=`date --utc --date "$time_end" +%s`
+
+		t_diff=$((ts_end-ts_start))
+		duration=$((t_diff/3600))
+
+		# Files
+		files=`grep "FILES" $b_dir/.backup_meta | awk '{ print $2}'`
 
 		# Extract date of backup from directory
-		b_date=`echo "$b_dir" | awk -F'/' '{ print $5"/"$6"/"$7 }'`
-		echo "$d_ct - $b_date ($b_size)"
+		printf "$format" $d_ct "$time_start" "$duration hrs" $b_size $files
 
 	done
 
