@@ -4,7 +4,7 @@
 runcheck=`ps ax | grep mysql-backup-daily | grep -v grep | grep -v vi | grep -v nedit | grep -v nano | wc -l`;
 date=`date +%Y-%m-%d_%H-%M`;
 
-if [ $runcheck -gt 2 ];
+if [ $runcheck -gt 3 ];
 then
         echo "[$date] 'mysql-backup-daily' already running. Exiting.";
         exit 1;
@@ -71,7 +71,7 @@ then
           do
             # Wait 60s for slave delay to become 0
             # Otherwise exit
-            if [ $sleep_count -ge 60 ];
+            if [ $sleep_count -ge 100 ];
             then
               echo "[$date] Waited 60 seconds for slave delay to become 0. Giving up."
               exit 1;
@@ -97,10 +97,8 @@ then
 
   # Write to .backup_meta
   echo "HOST: $hostname" > $backup_dir/.backup_meta
-  b_date=`date +%Y-%m-%d`
-  echo "DATE: $b_date" >> $backup_dir/.backup_meta
-  time_start=`date +%H:%M`
-  echo "START: $time_start" >> $backup_dir/.backup_meta
+  b_date=`date +%Y-%m-%d %H:%M`
+  echo "START: $b_date" >> $backup_dir/.backup_meta
 
   # Get all databases to dump their schemas
   databases=`mysql -h $hostname --user=$user --password=$password -s -e "SHOW DATABASES" | tr "\n" " ";`;
@@ -161,12 +159,16 @@ then
   echo "[$date] Backup for host '$server' finished.";
 
   # Write to .backup_meta
-  time_end=`date +%H:%M`
-  echo "END: $time_end" >> $backup_dir/.backup_meta
+  e_date=`date +%Y-%m-%d %H:%M`
+  echo "END: $e_date" >> $backup_dir/.backup_meta
 
   # Calculate size & write to .backup_meta
   b_size=`du -hs $backup_dir | awk '{ print $1 }'`
   echo "SIZE: $b_size" >> $backup_dir/.backup_meta
+
+  # Get the number of files
+  f_count=`ls -l $backup_dir/*.gz | wc -l`
+  echo "FILES: $f_count" >> $backup_dir/.backup_meta
 
   done
 else
