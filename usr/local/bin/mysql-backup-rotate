@@ -83,7 +83,7 @@ do
 	echo "[$date] Rotation period is '$rotation_period' days."
 
 	# First determine all existing backups of the host
-	b_existing=`$BIN_find $storagepath -type d -name $hostname -and -not -path "*archive*"`
+	b_existing=`$BIN_find $storagepath -name $hostname -and -not -path "*archive*" -type d`
 
 	for b_dir in $b_existing
 	do

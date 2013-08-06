@@ -21,18 +21,29 @@ if [[ $1 ]];
 then
         servers=$1;
 else
-	echo "$date - no server selected. Exiting."
-	exit 1
+	echo "$date - no server selected. Taking servers from existing config files."
+	servers=`ls -A /etc/mysql-backup/hosts | awk -F'.' '{ print $1 }'`
 fi
 
 for server in $servers;
 do
+	echo
+	echo "==========================================="
+	length=$((43-${#server}))
+	h_len=$(($length/2))
+	i=0
+	while [ $i -lt $h_len ]
+        do
+                echo -n " "
+                i=$(( $i + 1 ))
+        done
+	echo $server
+	echo -n "==========================================="
 	# Get Config for the host
 	server_conf=$configpath/$server".conf";
 	if [ -a $server_conf ];
 	then
-  	source $server_conf;
-  		echo "[$date] Found config file '$server_conf' for host '$server'";
+	  	source $server_conf;
 	else
   		echo "[$date] Config file for host '$server' not found. Exiting."
   		exit 1
@@ -41,14 +52,11 @@ do
 	# First determine all existing backups of the host
 	b_existing=`$BIN_find $storagepath -type d -name $hostname -and -not -path "*archive*"`
 
-	echo "Backups of host '$server'"
-	echo ""
-
 	divider===============================
 	divider=$divider$divider
 
-	header="\n %2s %18s %4s %4s %6s\n"
-	format=" %2d %18s %4s %4s %6s\n"
+	header="\n %2s %18s %8s %4s %6s\n"
+	format=" %2d %18s %8s %4s %6s\n"
 
 	width=43
 
@@ -75,15 +83,24 @@ do
 		ts_end=`date --utc --date "$time_end" +%s`
 
 		t_diff=$((ts_end-ts_start))
-		duration=$((t_diff/3600))
+
+		if [ $t_diff -ge 3600 ];
+		then
+			duration="$((t_diff/3600))h"
+		else
+			duration="$((t_diff/60))m"
+		fi
 
 		# Files
 		files=`grep "FILES" $b_dir/.backup_meta | awk '{ print $2}'`
 
 		# Extract date of backup from directory
-		printf "$format" $d_ct "$time_start" "$duration hrs" $b_size $files
+		printf "$format" $d_ct "$time_start" $duration $b_size $files
 
 	done
+
+	echo
+	echo
 
 	if [ $d_ct -eq 0 ];
 	then
