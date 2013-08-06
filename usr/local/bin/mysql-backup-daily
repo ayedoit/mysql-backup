@@ -42,6 +42,7 @@ then
   	echo "[$date] Found config file '$server_conf' for host '$server'";
   else
   	echo "[$date] Config file for host '$server' not found. Exiting."
+	echo "No config file for host '$server' found. Please review." | /usr/bin/mail -s 'MySQL Backup: Config file not found' $support_email
   	exit 1
   fi
 
@@ -52,6 +53,7 @@ then
   if [ $? -ne 0 ];
   then
 	echo "[$date] Can't connect to MySQL on host '$hostname'. Exiting."
+	echo "Could not connect to remote MySQL server on host '$hostname'. Please review." | /usr/bin/mail -s 'MySQL Backup: Connection failed' $support_email
 	exit 1
   fi
 
@@ -71,6 +73,7 @@ then
           if [ $slavedelay == "NULL" ];
           then
             echo "[$date] Slave is not active!";
+	    echo "Host '$hostname' is a slave but slave is not active." | /usr/bin/mail -s 'MySQL Backup: Slave not active' $support_email
             exit 1;
           fi
 
@@ -82,6 +85,7 @@ then
             if [ $sleep_count -ge 100 ];
             then
               echo "[$date] Waited 60 seconds for slave delay to become 0. Giving up."
+	      echo "Slave Delay on host '$hostname' still not 0 after 60 second wait period." | /usr/bin/mail -s 'MySQL Backup: Slave Delay too high' $support_email
               exit 1;
             else
               slavedelay=`mysql -h $hostname --user=$user --password=$password -s -e "SHOW SLAVE STATUS \G" | grep "Seconds_Behind_Master:" | cut -d":" -f2 | sed 's/\s//g'`;
@@ -139,6 +143,8 @@ then
       # check if create of $schema_dir has failed, exit if yes
       if [ $? -eq 0 ];
       then
+	echo "[$date] Dumping database schemas to '$schema_dir'.";
+
         # store CREATE DATABASE with DROP DATABASE
         mysqldump $params --user=$user --password=$password --host=$hostname $database --add-drop-database --no-create-info --no-data -B > $schema_dir/$database.sql;
 
@@ -146,10 +152,12 @@ then
         if [ $? -gt 0 ];
         then
   	      echo "[$date] Error dumping database structure.";
+	      echo "Could not dump dump database structure on host '$hostname'. Please review." | /usr/bin/mail -s 'MySQL Backup: Error dumping database structure' $support_email
   	      exit 1;
         fi
       else
         echo "[$date] Sorry. Could not create schema directory '$schema_dir'. Exiting.";
+	echo "Could not create schema directory '$schema_dir' on host '$hostname'. Please review." | /usr/bin/mail -s 'MySQL Backup: Error creating schema directory' $support_email
         exit 1;
       fi
     else
@@ -162,6 +170,12 @@ then
   date=`date +%Y-%m-%d_%H-%M`;
   echo "[$date] Starting data backups with mydumper - see $backup_dir/$server.log for information"
   $BIN_mydumper -o $backup_dir -r $chunk_size -c -e -L $backup_dir/$server.log -u $user -p $password -h $hostname -t $threads -v 3
+
+  if [ $? -gt 0 ];
+  then
+	echo "[$date] Backup not successful. mydumper returned status code '$?'.";
+	echo "Backup not successful. mydumper returned status code '$?'." | /usr/bin/mail -s 'MySQL Backup: Backup failed' $support_email
+  fi
 
   date=`date +%Y-%m-%d_%H-%M`;
   echo "[$date] Backup for host '$server' finished.";
