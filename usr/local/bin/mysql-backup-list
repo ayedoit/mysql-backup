@@ -21,7 +21,7 @@ if [[ $1 ]];
 then
         servers=$1;
 else
-	echo "$date - no server selected. Taking servers from existing config files."
+	echo "[$date] no server selected. Taking servers from existing config files."
 	servers=`ls -A /etc/mysql-backup/hosts | awk -F'.' '{ print $1 }'`
 fi
 
@@ -87,8 +87,11 @@ do
 		if [ $t_diff -ge 3600 ];
 		then
 			duration="$((t_diff/3600))h"
-		else
+		elif [ $t_diff -ge 60 ];
+		then
 			duration="$((t_diff/60))m"
+		else
+			duration=$t_diff"s"
 		fi
 
 		# Files
