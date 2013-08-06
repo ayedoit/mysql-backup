@@ -47,6 +47,14 @@ then
 
   echo "[$date] Starting backups on host '$server'";
 
+  # First check if we can connect
+  conn_check=`mysql -h $hostname --user=$user --password=$password -s -e "exit"`
+  if [ $? -ne 0 ];
+  then
+	echo "[$date] Can't connect to MySQL on host '$hostname'. Exiting."
+	exit 1
+  fi
+
   # check if server is a slave, otherwise skip this step
   if [ -n $slave ];
   then
