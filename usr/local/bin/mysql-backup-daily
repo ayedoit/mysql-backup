@@ -171,10 +171,11 @@ then
   echo "[$date] Starting data backups with mydumper - see $backup_dir/$server.log for information"
   $BIN_mydumper -o $backup_dir -r $chunk_size -c -e -L $backup_dir/$server.log -u $user -p $password -h $hostname -t $threads -v 3
 
-  if [ $? -gt 0 ];
+  return_code=$?
+  if [ $return_code -gt 0 ];
   then
 	echo "[$date] Backup not successful. mydumper returned status code '$?'.";
-	echo "Backup not successful. mydumper returned status code '$?'." | /usr/bin/mail -s 'MySQL Backup: Backup failed' $support_email
+	echo "Backup on host '$hostname' not successful. mydumper returned status code '$return_code'." | /usr/bin/mail -s 'MySQL Backup: Backup failed' $support_email
   fi
 
   date=`date +%Y-%m-%d_%H-%M`;
