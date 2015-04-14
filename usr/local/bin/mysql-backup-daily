@@ -19,7 +19,7 @@ day=`date +%d`;
 slavecheck=0;
 slavedelay=0;
 
-BIN_mydumper="/usr/local/bin/mydumper"
+BIN_mydumper=$(which mydumper)
 
 echo "[$date] Welcome to your MySQL Backup. Let's start.";
 
